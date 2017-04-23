@@ -1,0 +1,1 @@
+./bash/remake.sh-in-new-terminal.sh

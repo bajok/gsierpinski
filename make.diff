@@ -1,0 +1,14 @@
+-rw-r--r-- 1 ed ed  7966 2015-02-16 21:12:53.617015042 +0100 src/data_structures_init.c
+-rw-r--r-- 1 ed ed 11065 2009-06-12 13:43:20.000000000 +0200 src/glarea_callbacks.c
+-rw-r--r-- 1 ed ed  5047 2009-06-06 02:04:21.000000000 +0200 src/glconfig.c
+-rw-r--r-- 1 ed ed  7136 2009-06-12 13:44:42.000000000 +0200 src/gldisplay.c
+-rw-r--r-- 1 ed ed  5831 2009-06-12 13:44:58.000000000 +0200 src/gldisplay_drawing_functions.c
+-rw-r--r-- 1 ed ed  3808 2009-06-13 23:00:16.000000000 +0200 src/gthread_functions.c
+-rw-r--r-- 1 ed ed 16549 2009-06-13 23:55:49.000000000 +0200 src/gtk_callbacks.c
+-rw-r--r-- 1 ed ed  4032 2009-06-12 01:22:06.000000000 +0200 src/gtk_frontend_basic_widgets.c
+-rw-r--r-- 1 ed ed  4699 2015-02-16 21:04:59.529686150 +0100 src/gtk_frontend.c
+-rw-r--r-- 1 ed ed  4989 2015-02-16 21:03:54.660057290 +0100 src/gtk_frontend_gl_widgets.c
+-rw-r--r-- 1 ed ed 16118 2009-06-14 00:08:21.000000000 +0200 src/gtk_frontend_widgets.c
+-rw-r--r-- 1 ed ed  9407 2015-02-16 20:50:03.565123602 +0100 src/main.c
+-rw-r--r-- 1 ed ed  8456 2009-06-14 00:03:53.000000000 +0200 src/sierpinski.c
+-rw-r--r-- 1 ed ed  8496 2009-06-12 21:36:11.000000000 +0200 src/trackball.c

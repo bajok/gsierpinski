@@ -1,0 +1,208 @@
+#       
+#       Copyright 2009 Przemysław Dużyk <przemyslaw.duzyk@gmail.com>
+#       
+#       This program is free software; you can redistribute it and/or modify
+#       it under the terms of the GNU General Public License as published by
+#       the Free Software Foundation; either version 2 of the License, or
+#       (at your option) any later version.
+#       
+#       This program is distributed in the hope that it will be useful,
+#       but WITHOUT ANY WARRANTY; without even the implied warranty of
+#       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#       GNU General Public License for more details.
+#       
+#       You should have received a copy of the GNU General Public License
+#       along with this program; if not, write to the Free Software
+#       Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#       MA 02110-1301, USA.
+#
+
+#! /bin/gawk -f
+#
+
+BEGIN {
+  ECHO="yes"
+
+  red="\033[0;31m"
+  green="\033[0;32m"
+  yellow="\033[0;33m"
+  blue="\033[0;34m"
+  magenta="\033[0;35m"
+  cyan="\033[0;36m"
+  white="\033[0;37m"
+
+  boldred="\033[1;31m"
+  boldgreen="\033[1;32m"
+  boldyellow="\033[1;33m"
+  boldblue="\033[1;34m"
+  boldmagenta="\033[1;35m"
+  boldcyan="\033[1;36m"
+  boldwhite="\033[1;37m"
+
+  rederror="\033[0;37;41m"
+  hlgreenwhite="\033[0;37;42m"
+  hlyellowblue="\033[0;34;43m"
+  hlblueyellow="\033[0;33;44m"
+  hlgraywhite="\033[0;37;40m"
+
+  #hlgrayyellow="\033[1;33;40m"
+
+  boldgreen_good="\033[1;37;42m"
+  boldmagenta_warn="\033[1;37;45m"
+  boldred_bad="\033[1;37;41m"
+
+
+  flow_mark="[+]  "
+  flow_mark_color="\033[2;32;40m"
+  counter_color="\033[1;33;45m"
+
+  rederror="\033[0;37;41m"
+  underline="\033[4m"
+  reset=white
+  #reset="\033[0;0;0m"
+  beep="\007"
+  clearscr="\033[2J"
+
+  flt2="[-]?[0-9]+[.][0-9][0-9]"
+  flt3="[-]?[0-9]+[.][0-9][0-9][0-9]"
+
+  hx="[abcdef0123456789]"
+  pointer="0x" hx hx hx
+
+  print ""
+}
+
+#
+# functions definitions
+
+function ne() { ECHO="no" }
+
+
+#
+# main colorizing rules
+
+# convention is:
+#   whole line colorizing uses  /regexp/ { } patterns -- suppress printng line by ECHO="no"
+#   single word colorizing uses gsub ("text", replacedtext) as pattern
+
+##############################################################################
+/(gdk)|(GDK)|(OpenGL)/ {
+  ne();
+  gsub ("( = TRUE)|( = \"TRUE\")", boldblue "&")
+  gsub ("( = FALSE)|( = \"FALSE\")", boldred "&")
+  gsub (" = [[:digit:]]+", boldmagenta "&")
+  gsub (" [.]i[.] ", boldblue"&"reset)
+  gsub ("OpenGL", boldyellow "&" boldwhite)
+  print yellow $0 reset
+}
+
+##############################################################################
+# warnings
+/undefined reference to/ {
+  ne(); print magenta $0 reset }
+
+##############################################################################
+# paths and uris
+{ gsub ("( ([./])|(file:)|(http:))[/]*([[:alnum:]]*/*)*", boldblue"&"reset) }
+
+##############################################################################
+# variable names (and values) - to make value of different color set color after & mark
+{ gsub ("([[:graph:]]+ )([[][[:graph:]]+[]] )*(=)", blue"&") }
+
+##############################################################################
+# functions
+{ gsub ("([[:graph:]]+ )([(][[:alnum:]]*[)])", boldwhite"& "reset) }
+
+##############################################################################
+# window resolution
+{ gsub ("[[:digit:]]+x[[:digit:]]+", blue"&"reset) }
+
+# points, e.g. ( 0.1, 0.2, -0.4 )
+#{ gsub ("[(] "flt2", "flt2", "flt2" [)]", boldgreen"&"reset) }
+#{ gsub ("[(] "flt2", "flt2", "flt2" [)]", boldgreen"&"reset) }
+
+# points 
+#{ gsub ("("flt2")+ [,]* *", green"&"reset) }
+
+
+##############################################################################
+# parentheses
+#{ gsub ("[(] ", boldyellow"&"reset) }
+#{ gsub (" [)]", boldyellow"&"reset) }
+# colons
+{ gsub (", ", blue"&"reset) }
+
+##############################################################################
+# indexes
+{ gsub ("[[]([[:alnum:]]+)~(wrn)[]]", boldblue"&"blue) }
+# floats
+{ gsub (flt2, green"&") }
+{ gsub (flt3, yellow"&"reset) }
+# pointers
+{ gsub (pointer, red"|"boldyellow"&"red"|"blue) }
+# null
+{ gsub ("[(]nil[)]", reset rederror"&"reset) }
+
+##############################################################################
+# colorizing modules 
+{ gsub ("GL ", yellow"&"reset) }
+{ gsub ("GLCB", yellow"&"reset) }
+{ gsub ("GTK ", boldblue"&"reset) }
+{ gsub ("GRPH ", boldyellow"&"reset) }
+{ gsub ("WDGT ", blue"&"reset) }
+{ gsub ("(DATA )|(FILE )", magenta"&"reset) }
+{ gsub ("RAT ", magenta"&"reset) }
+{ gsub ("EXTIO ", boldred"&"reset) }
+{ gsub ("STAT ", green"&"reset) }
+{ gsub ("MEM ", red"&"reset) }
+{ gsub ("THRD ", cyan"&"reset) }
+
+##############################################################################
+# misc
+{ gsub ("count: [[:digit:]]+", counter_color" [ ""&"" ] "reset) }
+{ gsub ("(expose^[_])|(realize^[_])|(configure^[_])", boldmagenta"&"reset) }
+{ gsub ("box [[]6[]]", boldblue"&"blue) }
+# separator
+{ gsub ("[|] ", boldblue"&"reset) }
+{ gsub (flow_mark, flow_mark_color"&") }
+
+##############################################################################
+# log type
+{ gsub (" dbg  ", blue"&"reset) }
+{ gsub ("flow", flow_mark_color"&"reset) }
+{ gsub (flow_mark, flow_mark_color"&") }
+# if flow is matched -- colorize 3rd element to green
+{ gsub (" [.]i[.]  ", blue"&"reset) }
+{ gsub ("[[]wrn[]] ", boldmagenta"&"boldmagenta) }
+{ gsub ("[(]err[)] ", boldred"&"boldred) }
+
+##############################################################################
+# some fancy keywords
+{ gsub ("successfully", green"&"reset) }
+{ gsub ("(failed)|(FAIL)", boldred_bad" !""&""! "reset) }
+{ gsub ("(DISABLED)", hlgraywhite" .""&"". "reset) }
+{ gsub ("(ENABLED)|(succeeded)|(PASS)", boldgreen_good" |""&""| "reset) }
+{ gsub ("(NOTE: )|(notice)", boldmagenta"&"reset) }
+
+##############################################################################
+# glib, gtk messages
+{ gsub ("([[:alnum:]]+-[[:alnum:]]*-*CRITICAL)", red"&") }
+{ gsub ("([[:alnum:]]+-[[:alnum:]]*-*WARNING)", magenta"&") }
+# (<unknown>:4844):
+{ gsub ("[(][<][[:alnum:]]+[>]:[[:digit:]]+[)]:", blue"&") }
+
+
+#
+# when nothing strange happens, and if there were no /regexp/ {} rule matched,
+# print line -- otherwise set echo flag to yes
+#   (otherwise - the rule was matched, so the rule prints line)
+{ if (ECHO=="yes") print white $0
+  else ECHO="yes" }
+
+
+END {
+  realreset="\033[0;0;0m";
+  print realreset  ""
+}
+
+

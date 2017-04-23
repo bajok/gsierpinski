@@ -1,0 +1,117 @@
+/*
+ *      gldisplay.c
+ *      
+ *      Copyright 2009 Przemysław Dużyk <przemyslaw.duzyk@gmail.com>
+ *      
+ *      This program is free software; you can redistribute it and/or modify
+ *      it under the terms of the GNU General Public License as published by
+ *      the Free Software Foundation; either version 2 of the License, or
+ *      (at your option) any later version.
+ *      
+ *      This program is distributed in the hope that it will be useful,
+ *      but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *      GNU General Public License for more details.
+ *      
+ *      You should have received a copy of the GNU General Public License
+ *      along with this program; if not, write to the Free Software
+ *      Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+ *      MA 02110-1301, USA.
+ */
+
+
+#include <gtk/gtk.h>
+#include <gtk/gtkgl.h>
+#include <GL/gl.h>
+#include <GL/glu.h>
+#include <math.h>
+#include "data_structures_init.h"
+#include "gldisplay.h"
+#include "gldisplay_drawing_procedures.h"
+
+
+//~ --------------------------------------------------------------------------------------------------------------------
+//~  glext_realize_main_gl_graph
+//~ --------------------------------------------------------------------------------------------------------------------
+
+void glgraph_realize_main_gl_graph (GtkWidget *widget, gpointer data) {
+
+    #ifdef DEBUG_GL
+        DEBUG_LOG_FLOW      (DEBUG_GL, "glgraph_realize_main_gl_graph", " . ")
+    #endif 
+
+    glMatrixMode (GL_PROJECTION);
+    glLoadIdentity ();
+    glOrtho (-2.0, 2.0, -2.0, 2.0, -2.0, 2.0);
+    GLfloat width = widget->allocation.width;
+    GLfloat height = widget->allocation.height;
+
+    /*
+    * perspective - graph widget aspect ratio
+    */
+
+    gluPerspective(45.0f, width / height, 0.1f, 100.0f);
+
+    glMatrixMode (GL_MODELVIEW);
+    glLoadIdentity ();
+
+    glTranslated (scene->gltranslate [0], scene->gltranslate [1], scene->gltranslate [2]);
+
+    glRotatef (scene->glrotate [0], scene->glrotate [1], scene->glrotate [2], scene->glrotate [3]);
+
+}
+ 
+//~ --------------------------------------------------------------------------------------------------------------------
+//~  glext_draw_main_glgraph
+//~ --------------------------------------------------------------------------------------------------------------------
+
+void glgraph_draw_main_glgraph (GdkGLDrawable *gldrawable, gpointer data) {
+
+    #ifdef DEBUG_GL
+        DEBUG_LOG_FLOW      (DEBUG_GL, "glgraph_draw_main_glgraph", " . ")
+    #endif 
+
+    glClearDepth (1.0);
+    glClearColor (scene->clearcolor [0], scene->clearcolor [1], scene->clearcolor [2], scene->clearcolor [3]); // background color
+    glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    GLfloat LightAmbient[]  = {0.5f, 0.5f, 0.5f, 1.0f};
+    GLfloat LightDiffuse[]  = {1.0f, 1.0f, 1.0f, 1.0f};
+    GLfloat LightPosition[] = {0.0f, 0.0f, 2.0f, 1.0f};
+
+    glLightfv(GL_LIGHT1, GL_AMBIENT, LightAmbient);
+    glLightfv(GL_LIGHT1, GL_DIFFUSE, LightDiffuse);
+    glLightfv(GL_LIGHT1, GL_POSITION, LightPosition);
+    glEnable(GL_LIGHT1);
+
+
+    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+
+    glShadeModel(GL_SMOOTH);
+    glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
+
+    glMaterialfv (GL_FRONT, GL_AMBIENT_AND_DIFFUSE, scene->color);
+
+    glDepthFunc (GL_LESS);
+    glEnable (GL_DEPTH_TEST);
+
+    glCullFace (GL_FRONT_AND_BACK);
+
+
+    glgraph_draw_stock_index ((glgraph_display_data *) data);
+ 
+    //g_prnt (" d glext_draw_main_glgraph    data = %p\n", data);
+  
+
+    //~ glCallList (glplane);
+    //~ glDeleteLists(glgraph, 1);
+
+
+    if (gdk_gl_drawable_is_double_buffered (gldrawable))
+            gdk_gl_drawable_swap_buffers (gldrawable);
+    else
+            glFlush ();
+
+
+}
+

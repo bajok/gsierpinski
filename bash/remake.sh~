@@ -1,0 +1,620 @@
+#! /bin/bash
+
+#
+#
+#       remake
+#       
+#       Copyright 2009 Przemysław Dużyk <przemyslaw.duzyk@gmail.com>
+#       
+#       This program is free software; you can redistribute it and/or modify
+#       it under the terms of the GNU General Public License as published by
+#       the Free Software Foundation; either version 2 of the License, or
+#       (at your option) any later version.
+#       
+#       This program is distributed in the hope that it will be useful,
+#       but WITHOUT ANY WARRANTY; without even the implied warranty of
+#       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#       GNU General Public License for more details.
+#       
+#       You should have received a copy of the GNU General Public License
+#       along with this program; if not, write to the Free Software
+#       Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#       MA 02110-1301, USA.
+#
+
+SCRIPT_VER="0.9.4"
+# 
+# a one shall have at least 120 column wide terminal
+
+##################################################################################################
+#
+# remake
+
+##################################################################################################
+#
+# colors
+
+red="\033[0;31m"
+green="\033[0;32m"
+yellow="\033[0;33m"
+blue="\033[0;34m"
+magenta="\033[0;35m"
+cyan="\033[0;36m"
+white="\033[0;37m"
+boldgreen="\033[1;32m"
+boldyellow="\033[1;33m"
+boldblue="\033[1;34m"
+boldmagenta="\033[1;35m"
+rederror="\007\033[0;37;41m"
+hlgreenwhite="\033[1;37;42m"
+hlblueyellowb="\033[1;33;44m"
+hlblueyellow="\033[0;33;44m"
+hlbluewhite="\033[0;37;44m"
+hlbluewhiteb="\033[1;37;44m"
+hl_separator="\033[1;37;43m"
+hl_scriptn1="\033[1;37;45m"
+hl_scriptn2="\033[0;37;45m"
+reset="\033[0;0;0m"
+SAVE_CURSOR_POS="\033[s"
+LOAD_CURSOR_POS="\033[u"
+separator="$hl_separator""                                                                                  ""$reset"
+shortseparator="$boldyellow"" - ""$reset"
+
+##################################################################################################
+#
+# current project variables
+
+projectdir=`pwd`
+projectname="ginvest"
+OBJ_DIR=`cat Makefile | grep "OBJ_PATH=" | cut -f2 -d=`
+BIN_DIR=`cat Makefile | grep "BIN_PATH=" | cut -f2 -d=`
+TAR_DIR="tar"
+makediff_file="make.diff"
+makediff_file_old="make.diff.old"
+build_file="build.files"
+awk_binary_path="/bin/gawk"
+PATH_AWK="awk"
+awkmakefile="$PATH_AWK""/make-colorized.awk"
+awkprojectfile="$PATH_AWK""/""$projectname""-colorized.awk"
+
+#
+# defaults
+
+sleep_time_after_compilation="3"
+colorize="yes"
+SLEEP_FLAG="yes"
+
+
+##################################################################################################
+#
+# check obj/bin dirs
+
+#
+# getting obj and bin dirs
+
+OBJ_DIR=`cat Makefile | grep "OBJ_PATH=" | cut -f2 -d=`
+BIN_DIR=`cat Makefile | grep "BIN_PATH=" | cut -f2 -d=`
+
+if [ -d "$OBJ_DIR" ]; then
+  echo -ne "$hl_scriptn1"" \n" # obj directory found...
+else 
+  mkdir $OBJ_DIR
+fi
+
+if [ -d "$BIN_DIR" ]; then
+  echo -ne "$hl_scriptn1"" \n" # bin directory found...
+else
+  mkdir $BIN_DIR
+fi
+
+
+##################################################################################################
+#
+# print header or help also
+
+echo -ne "$hl_scriptn1""remake.sh""$hl_scriptn2"" ver. $SCRIPT_VER""$reset\n\n"
+echo -ne "$boldblue""current project:   ""$boldyellow""$projectname""$reset\n"
+echo -ne "$boldblue""current directory: ""$white""$projectdir""$reset\n"
+echo -ne "$boldblue""sources directory: ""$white""src""$reset\n"
+echo -ne "$boldblue""objects directory: ""$white""$OBJ_DIR""$reset\n"
+echo -ne "$boldblue""binary  directory: ""$white""$BIN_DIR""$reset\n"
+
+
+if [ "$1" == "--help" -o "$1" == "-h" -o "$1" == "help" ]; then
+
+  #
+  # descriptions
+
+  DESC_REMAKE="$yellow""recompile modified sources if ""$blue""$makediff_file""$yellow"" is present (otherwise make all)""$reset\n"
+  DESC_REMAKE_ALL="$yellow""recompile all sources: remove ""$blue""$makediff_file""$yellow"" (force fresh build)""$reset\n"
+  DESC_REMAKE_BUILDFILES="$yellow""recompile only given sources: (and do not execute binary) ""$blue""buildfiles=file1:file2...""$reset\n"
+  DESC_REMAKE_SLEEP="$yellow""sleep after program termination""$reset\n"
+  DESC_REMAKE_NOCOLOR="$yellow""turn off colorizing""$reset\n"
+  DESC_REMAKE_RUN="$yellow""just execute program""$reset\n"
+  DESC_REMAKE_REMOVETAR="$yellow""removes today's archive (make new archive)""$reset\n"
+  DESC_REMAKE_VERIFY="$yellow""check if all compiled objects exist""$reset\n"
+  DESC_REMAKE_NEXT="$yellow""recompile only first failed source""$reset\n"
+  DESC_REMAKE_CLEAN="$yellow""clean objects (and exit)""$reset\n"
+
+  echo -ne "$boldmagenta""\n  usage:\n""$reset\n"
+  echo -ne "$boldblue""  compile, link and run options:\n"
+  echo -ne "$white""  $ remake.sh            "$DESC_REMAKE
+  echo -ne "$white""  $ remake.sh all        "$DESC_REMAKE_ALL
+  echo -ne "$white""  $ remake.sh buildfiles "$DESC_REMAKE_BUILDFILES
+  echo -ne "$white""  $ remake.sh next       "$DESC_REMAKE_NEXT
+  echo
+  echo -ne "$boldblue""  only execute:\n"
+  echo -ne "$white""  $ remake.sh run        "$DESC_REMAKE_RUN
+  echo
+  echo -ne "$boldblue""  build tools:\n"
+  echo -ne "$white""  $ remake.sh clean      "$DESC_REMAKE_CLEAN
+  echo -ne "$white""  $ remake.sh removetar  "$DESC_REMAKE_REMOVETAR
+  echo -ne "$white""  $ remake.sh verify     "$DESC_REMAKE_VERIFY
+  echo
+  echo -ne "$boldblue""  miscellaneous:\n"
+  echo -ne "$white""  $ remake.sh sleep      "$DESC_REMAKE_SLEEP
+  echo -ne "$white""  $ remake.sh nocolor    "$DESC_REMAKE_NOCOLOR
+  echo
+  echo -ne "$magenta""  examples:\n"
+  echo -ne "$white""  $ remake.sh sleep nocolor\n"
+  echo -ne "$white""  $ remake.sh all sleep nocolor\n"
+  echo -ne "$reset\n"
+  echo -ne "$magenta""note: only sleep and nocolor flags may be used as 2nd parameter\n""$reset"
+  echo -ne "$magenta""note: whenever waiting for enter ctrl-c may be pressed to terminate sript\n\n""$reset"
+  echo "todo: remove make.diff file if number of objects != number of *.c files"
+
+  echo -ne "$reset\n"
+  exit
+
+fi
+
+##################################################################################################
+#
+# flags
+
+
+# set "sleep after compilation" flag
+if [ "$1" == "sleep" -o "$2" == "sleep" ]; then
+  SLEEP_FLAG="yes"
+else
+  SLEEP_FLAG="no"
+fi
+
+# colorize flag
+if [ "$1" == "nocolor" -o "$2" == "nocolor" -o "$3" == "nocolor" ]; then
+  colorize="nocolor"
+fi
+
+# remove makediff_file for fresh build
+if [ "$1" == "all" ]; then
+  rm $makediff_file
+fi
+
+today=`date +%Y%m%d`
+current_tar_name=`echo "$projectname""-""$today"".tar"`
+current_filename="$current_tar_name"".gz"
+
+
+
+##################################################################################################
+#
+# functions
+
+#
+# verify - link if all objects present (ls c files and find object for them)
+
+function verify {
+
+OBJECTS=`ls src/*.c | cut -f2 -d/ | cut -f1 -d.`
+OBJ_ERR="0"
+OBJ_BAD_LIST=""
+#SAVE_CURSOR_POS="\033[s"
+#LOAD_CURSOR_POS="\033[u"
+#NO_FILE_STRING=`echo -ne "\033[sno \033[u\033[40C 123\n"`
+ERR_COLUMN="\033[60C"
+
+echo
+echo -ne "$hlblueyellowb"" :: verifying objects...$reset\n"
+
+for file in $OBJECTS; do
+  objfile="$OBJ_DIR/""$file"".o"
+  if [ -f $objfile ]; then
+    echo -ne "$green""$objfile""$reset\n"
+  else
+    if [ "$OBJ_ERR" -eq "0" ]; then
+      OBJ_BAD_LIST=$file
+    else
+      OBJ_BAD_LIST=`echo "$OBJ_BAD_LIST"" ""$file"`
+    fi
+    OBJ_ERR=$((OBJ_ERR+1))
+    echo -ne "$rederror""\033[s""$objfile""$red""\033[u""$ERR_COLUMN""no such file""$reset\n"
+  fi
+done
+
+if [ "$OBJ_ERR" -gt "0" ]; then
+  echo -ne "\n""$rederror""build incomplete!""$reset\n\n"
+
+  echo -ne "$red""one may pick another try with a one:\n$reset"
+  for file in $OBJ_BAD_LIST; do
+    echo -ne "$yellow""$0 buildfiles=""$blue""$file""\n$reset"
+  done
+
+  echo -ne "$red""\nor one may want all:\n"
+  echo -ne "$yellow""$0 buildfiles="
+  for file in $OBJ_BAD_LIST; do
+    echo -ne "$blue""$file:"
+  done
+  echo -ne "\b \n"
+
+  echo -ne "$white""\nhit enter...\n""$reset"
+  read
+  exit
+else
+  if [ "$1" == "and_print_remakes" ]; then
+  echo -ne "$boldmagenta""recompile:\n$reset"
+  for file in $OBJECTS; do
+    echo -ne "$yellow""$0 buildfiles=""$blue""$file""\n$reset"
+  done
+  fi
+fi
+
+}
+
+#
+# trap ctrl-c so it sleeps until enter is pressed
+
+trap pause SIGINT
+function pause() {
+  echo -ne "$magenta"" pressed...  ""$yellow""pause\n\n"
+  echo -ne "$boldblue""press ""$white""enter""$boldblue"" to exit ""$reset"
+  read
+  exit
+}
+
+#
+# turn off colorizing if awk files not present
+
+if [ "$colorize" == "yes" ]; then
+  if [ -f $awkmakefile -a -f $awkprojectfile -a -f $awk_binary_path ]; then
+    colorize="yes"
+#    echo awk files found... colorizing turned on by default.
+#    echo                    colorized run provides also some sort of so called features...
+  else
+    colorize="nocolor"
+    echo no gawk and/or awk scripts present. standard output.
+  fi
+else
+  echo turning off this fancy color support
+fi
+
+
+# make archive once a day 
+# this function is called after successful build
+
+#
+# make_tar
+
+function make_tar {
+#  today=`date +%Y%m%d`
+#  current_tar_name=`echo "$projectname""-""$today"".tar"`
+#  current_filename="$current_tar_name"".gz"
+  if [ -f $TAR_DIR/$current_filename ]; then
+    #echo daily archive: $current_filename present
+    echo
+  else
+    # program sources
+    cfiles=`ls src/*.c`
+    cifiles=`ls src/*.cincl`
+    headers=`ls src/*.h`
+    macros=`ls src/*.def`
+    awkfiles=`ls awk/*.awk`
+    # additional files to archive
+    miscfiles="Makefile remake.sh remake.sh-in-new-terminal.sh grep-files.sh ""$projectname"
+    tar -cf $TAR_DIR/$current_tar_name $cfiles $cifiles $headers $macros $awkfiles $miscfiles
+    gzip $TAR_DIR/$current_tar_name
+    echo created new $current_filename
+  fi
+}
+
+# useful when building in newly created terminal (stays for a while after program exit)
+function sleep_then {
+  sleep_time=$1
+  echo -ne "$boldblue""press ""$white""ctrl-c ""$boldblue""to stop timer and pause\n"
+  tclr=`echo -ne "$boldyellow"`
+  timer_prefix=`echo -ne "$blue""    ~   ""$tclr"`
+
+  # iterate each second
+  for ((timer=$sleep_time; timer>0; timer--))
+  do
+    min=$((timer/60))
+    sec=$((timer-(min*60)))
+    if [ "$sec" -lt "10" ]
+    then
+        sec=`echo "0""$sec"`
+    fi
+
+    # printing with second blinking :)
+    if [ $((timer%2)) == 0 ]
+    then
+      echo -ne "$timer_prefix""$min""$boldblue"":""$tclr""$sec""            \r"
+    else
+      echo -ne "$timer_prefix""$min""$boldblue"".""$tclr""$sec""            \r"
+    fi
+    sleep 1
+  done
+}
+
+##################################################################################################
+#
+# special runs
+
+
+if [ "$1" = "run" ]; then 
+  ./$projectname 2>&1 | gawk -f $awkprojectfile
+# exit  
+  exit
+fi
+
+if [ "$1" = "clean" ]; then
+  echo -ne "$magenta""\nclean objects requested""$yellow""...\n"
+  echo -ne "$white""hit enter...""$reset"
+  read
+  rm $OBJ_DIR/*
+# exit
+  exit
+fi
+
+
+
+if [ "$1" == "verify" ]; then
+  verify "and_print_remakes"
+  exit
+fi
+
+
+# remove makediff_file for fresh build
+if [ "$1" == "removetar" ]; then
+  echo -ne "$magenta""\narchive update forced""$yellow""...\n"
+  echo -ne "$white""rm ""$boldblue""$TAR_DIR/$current_filename""$reset\n\n\n"
+  rm $TAR_DIR/$current_filename
+  echo -ne "$white""hit enter...""$reset"
+  read
+fi
+
+
+##################################################################################################
+#
+# setup build
+
+#
+# prepare build file - if make.diff file exists - compile only modified files
+#                      else make clean and compile all
+
+# if old file exists
+
+if [ "$1" != "next" ]; then
+
+  if [ -f $makediff_file ]; then
+
+    # copy file from previous build to old
+    cp $makediff_file $makediff_file_old
+
+    # get current file listing
+    ls -l src/*.c > $makediff_file
+
+    # compare last and and save build files
+    diff $makediff_file $makediff_file_old | grep "< " | cut -f2 -d/ | cut -f1 -d. > $build_file
+
+    # if zero size (same files)
+    #filesize=`ls -s $build_file | cut -f1 -d" "`
+    filesize=`ls -l $build_file | egrep -o ' [[:digit:]]+ [[:digit:]]{2,4}-[[:digit:]]{2}' | cut -f2 -d" "`
+    if [ "$filesize" == "0" ]; then
+      echo "main" > $build_file
+    fi
+
+    rm $makediff_file_old
+
+# else
+  else
+
+    # build all files - so make clean
+    if [ "$colorize" == "yes" ]; then
+      make clean 2>&1 | gawk -f $awkmakefile
+    else
+      make clean
+    fi
+
+    # save current file listing
+    ls -l src/*.c > $makediff_file
+
+    # create build file with all files
+    ls src/*.c | cut -f2 -d/ | cut -f1 -d. > $build_file
+  fi
+fi
+
+#
+# compile only one file, just after last successfully compiled
+
+if [ "$1" == "next" ]; then
+
+  # all .c sources
+  C_SOURCES=`ls src/*.c | cut -f2 -d/ | cut -f1 -d.`
+  echo all c sources: $C_SOURCES
+
+  rm $build_file
+
+  for file in $C_SOURCES; do
+    objfile="$OBJ_DIR/""$file"".o"
+
+    if [ -f $objfile ]; then
+      echo -ne "$reset"
+    else
+      echo $file > $build_file
+      break
+    fi
+  done
+fi
+
+
+if [ -f $build_file ]; then
+  echo -ne "$reset"
+else
+  echo -ne "$yellow""nothing to recompile.""$reset\n"
+  exit
+fi
+
+
+###########################################
+#
+# selected files build
+
+###########################################
+#
+# in case building only some sources .. (makediff file is replaced)
+
+IS_BUILDFILES=`echo $1 | cut -f1 -d=`
+
+if [ "$IS_BUILDFILES" == "buildfiles" ]; then
+
+  echo $1 | cut -f2 -d= | tr ":" "\n" > $build_file
+
+  filesize=`ls -l $build_file | egrep -o ' [[:digit:]]+ [[:digit:]]{2,4}-[[:digit:]]{2}' | cut -f2 -d" "`
+#  echo $filesize
+  if [ "$filesize" -lt "2" ]; then
+    echo -ne "$rederror""no files given!!!""$reset\n"
+    exit
+  fi
+fi
+
+
+###########################################
+#
+# printing build files:
+
+echo
+echo -ne "$hlblueyellowb"" :: files to recompile: ""$green\n\n"
+cat $build_file
+echo
+b_filecount=`cat $build_file | wc -l`
+c_files=`ls -1B src | egrep -c '[.]c\>'`
+h_files=`ls -1B src | egrep -c '[.]h\>'`
+i_files=`ls -1B src | egrep -c '[.]cincl\>'`
+c_filecount="$hlblueyellowb"" | *.c: ""$hlbluewhiteb""$c_files"
+h_filecount="$hlblueyellow"" | *.h: $h_files"
+i_filecount="$hlblueyellow"" | *.cincl: $i_files | "
+ls_src_count="\t\t $hlgreenwhite all sources: $c_filecount""$h_filecount""$i_filecount"
+echo -ne "$hlblueyellowb"" :: total: ""$hlbluewhiteb""$b_filecount""$ls_src_count""$reset\n\n"
+#echo -ne "$white""\nhit enter...\n""$reset"
+#read
+
+
+###########################################
+#
+# this does not need to shine so much
+
+if [ "$colorize" = "nocolor" ]
+then
+  echo
+  make compile
+  make $projectname
+  ./$BIN_DIR/$projectname
+  # when symbolic link is present
+  #./$projectname
+# exit
+  exit
+fi
+
+
+##################################################################################################
+#
+# compile, verify and link
+
+###########################################
+#
+# compile
+
+#echo -ne "$blue""$separator\n"
+echo -ne "$hlblueyellowb"" :: \n :: compiling...\n :: "
+make compile        2>&1 | gawk -f $awkmakefile
+
+#
+# exit here if parameter buildfiles= is used
+
+if [ "$IS_BUILDFILES" == "buildfiles" ]; then
+  exit
+# exit
+fi
+
+
+###########################################
+#
+# verify
+
+
+verify
+
+
+###########################################
+#
+# link and play
+
+echo
+echo -ne "$hlgreenwhite"" :: \n :: linking...\n :: "
+make $projectname   2>&1 | gawk -f $awkmakefile
+echo -ne "$reset\n"
+
+EXIT_CODE="0"
+
+if [ -f bin/$projectname ]; then
+  echo -ne "$separator""\n"
+
+  # binary is placed in: ./bin/$projectname
+  if [ -f ./$projectname ]; then
+    today_is=`date`
+    echo -ne "\n""$boldblue""build successful: ""$blue""$today_is""\n"
+    echo -ne "$green""link to binary is present...\n"
+    echo -ne "$boldgreen""executing application...\n\n"
+  echo -ne "$separator""\n"
+  else
+    ln -s ./bin/$projectname ./$projectname
+  fi
+
+  ./$projectname 2>&1 | gawk -f $awkprojectfile
+  EXIT_CODE="${PIPESTATUS[0]}"
+  #EXIT_CODE="$?"
+  #echo "exit code: ${?} [AFTER]"
+
+  # after execution
+  if [ "$SLEEP_FLAG" = "yes" ]; then
+    sleep_then $sleep_time_after_compilation
+  fi
+
+  if [ -d $TAR_DIR ]; then
+    make_tar
+  else
+    mkdir $TAR_DIR
+    make_tar
+  fi
+
+#
+# when compilation fails
+
+else
+  echo -ne "$rederror""there was an error during building "
+  echo -ne "$boldyellow"" $projectname  ""$rederror\n$reset\n"
+  if [ "$SLEEP_FLAG" = "yes" ]
+  then
+    sleep_then $sleep_time_after_compilation
+  else
+    echo -ne "$white""\nhit enter...\n""$reset"
+    read
+  fi
+fi
+
+echo program terminated with exit code: $EXIT_CODE
+
+echo -ne "\n $boldgreen""done.""$reset\n"
+
+echo -ne "$reset\n"
+
+
